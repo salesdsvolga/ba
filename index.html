@@ -2,158 +2,234 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Точки">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title>Точки</title>
 <style>
   :root {
-    --bg:#f4f5f8; --card:#fff; --text:#1c1f2b; --muted:#6b7285; --line:#e2e5ee;
-    --accent:#3f51b5; --accent-t:#fff; --ok:#2e7d32; --warn:#ef6c00; --err:#c62828;
-    --wait:#757575; --work:#1565c0; --sched:#ef6c00; --done:#2e7d32;
+    color-scheme: light dark;
+    --bg:#ffffff; --card:#f4f4f5; --sheet:#ffffff; --text:#0a0a0a; --muted:#8a8a90;
+    --line:#e7e7ea; --ink:#0a0a0a; --ink-t:#ffffff; --soft:rgba(10,10,10,.06);
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#14161d; --card:#1e212b; --text:#e8eaf2; --muted:#9aa1b5; --line:#2e3240;
-            --accent:#7986cb; --accent-t:#101223; --ok:#66bb6a; --warn:#ffa726; --err:#ef5350;
-            --wait:#9e9e9e; --work:#64b5f6; --sched:#ffa726; --done:#66bb6a; }
+    :root { --bg:#000000; --card:#151517; --sheet:#1c1c1e; --text:#f5f5f7; --muted:#8e8e93;
+            --line:#2a2a2d; --ink:#ffffff; --ink-t:#000000; --soft:rgba(255,255,255,.08); }
   }
-  * { box-sizing:border-box; }
-  html,body { margin:0; background:var(--bg); color:var(--text);
-    font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
-  header { position:sticky; top:0; z-index:5; background:var(--card); border-bottom:1px solid var(--line);
-    padding:10px 16px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
-  h1 { margin:0; font-size:18px; }
-  #who { color:var(--muted); font-size:13px; }
-  #sync { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; white-space:nowrap; }
-  #sync i { width:8px; height:8px; border-radius:50%; background:var(--ok); display:inline-block; }
-  #sync.bad i { background:var(--err); }
-  .bar { max-width:900px; margin:0 auto; padding:12px 16px 0; display:flex; justify-content:space-between;
-    align-items:center; gap:12px; flex-wrap:wrap; color:var(--muted); font-size:13px; }
-  .bar label { display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--text); }
-  main { max-width:900px; margin:0 auto; padding:8px 16px 60px; }
-  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted);
-    margin:22px 0 8px; display:flex; align-items:center; gap:8px; }
-  h2 .n { background:var(--line); color:var(--text); border-radius:10px; padding:0 8px; font-size:12px; }
-  .empty { color:var(--muted); font-size:13px; padding:4px 2px; }
-  .card { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--wait);
-    border-radius:10px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
-  .card:hover { border-color:var(--accent); }
-  .card.s-work { border-left-color:var(--work); }
-  .card.s-sched { border-left-color:var(--sched); }
-  .card.s-done { border-left-color:var(--done); }
-  .card .t { font-weight:600; }
-  .card .a { color:var(--muted); font-size:13px; }
-  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
-  .chip { font-size:12px; border:1px solid var(--line); border-radius:12px; padding:1px 8px; }
-  .chip.me { border-color:var(--accent); color:var(--accent); font-weight:600; }
-  dialog { border:none; border-radius:14px; padding:0; width:min(600px,94vw); max-height:92vh;
-    background:var(--card); color:var(--text); box-shadow:0 10px 40px rgba(0,0,0,.35); }
-  dialog::backdrop { background:rgba(0,0,0,.45); }
-  .dh { padding:14px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; }
-  .dh .t { font-weight:700; font-size:17px; }
-  .x { background:none; border:none; font-size:22px; line-height:1; color:var(--muted); cursor:pointer; }
-  .db { padding:14px 16px 18px; overflow:auto; max-height:calc(92vh - 70px); }
-  .lbl { font-size:12px; color:var(--muted); margin:12px 0 2px; text-transform:uppercase; letter-spacing:.03em; }
-  .pre { white-space:pre-wrap; }
-  a { color:var(--accent); }
-  .info { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin-top:12px; }
-  button.b { font:inherit; border-radius:8px; border:1px solid var(--accent); background:var(--accent);
-    color:var(--accent-t); padding:9px 14px; cursor:pointer; font-weight:600; }
-  button.b.sec { background:transparent; color:var(--accent); }
-  button.b.dng { background:transparent; color:var(--err); border-color:var(--line); font-weight:500; }
-  button.b:disabled { opacity:.5; cursor:wait; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center; }
-  input[type=datetime-local], textarea { font:inherit; width:100%; padding:8px 10px; border-radius:8px;
-    border:1px solid var(--line); background:var(--bg); color:var(--text); }
-  textarea { min-height:70px; resize:vertical; }
-  .row input[type=datetime-local] { width:auto; flex:1 1 200px; }
-  hr { border:none; border-top:1px solid var(--line); margin:16px 0 4px; }
-  #toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#222; color:#fff;
-    padding:10px 16px; border-radius:10px; font-size:14px; opacity:0; pointer-events:none;
-    transition:opacity .2s; max-width:90vw; z-index:50; text-align:center; }
-  #toast.show { opacity:1; }
-  .gate { max-width:480px; margin:80px auto; padding:0 20px; text-align:center; color:var(--muted); }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  button { font:inherit; color:inherit; }
+
+  /* ---------- шапка ---------- */
+  header { max-width:720px; margin:0 auto; padding:22px 20px 6px; display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
+  h1 { margin:0; font-size:36px; line-height:1.05; letter-spacing:-.03em; font-weight:800; }
+  #who { color:var(--muted); font-size:14px; margin-top:4px; }
+  #sync { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); padding-bottom:6px; white-space:nowrap; }
+  #sync i { width:7px; height:7px; border-radius:50%; background:var(--ink); display:inline-block; }
+  #sync.bad i { background:transparent; border:1.5px solid var(--muted); }
+
+  .tools { max-width:720px; margin:0 auto; padding:14px 20px 0; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .seg { display:inline-flex; background:var(--card); border-radius:12px; padding:3px; }
+  .seg button { border:0; background:transparent; padding:7px 18px; border-radius:9px; font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; }
+  .seg button.on { background:var(--ink); color:var(--ink-t); }
+  #stats { font-size:13px; color:var(--muted); }
+
+  main { max-width:720px; margin:0 auto; padding:4px 20px 60px; }
+  h2 { margin:28px 0 10px; font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:8px; }
+  h2 .n { font-size:12px; background:var(--soft); color:var(--text); min-width:22px; text-align:center; padding:1px 7px; border-radius:20px; letter-spacing:0; }
+  .empty { color:var(--muted); font-size:14px; padding:2px 2px 0; }
+
+  /* ---------- карточки ---------- */
+  .card { background:var(--card); border-radius:20px; padding:15px 16px; margin-bottom:10px; display:flex; gap:14px;
+    align-items:center; justify-content:space-between; cursor:pointer; transition:transform .12s ease; }
+  .card:active { transform:scale(.98); }
+  .card .t { font-weight:700; font-size:17px; letter-spacing:-.01em; }
+  .card .a { color:var(--muted); font-size:14px; margin-top:1px; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:9px; }
+  .chip { font-size:12px; font-weight:600; padding:3px 10px; border-radius:20px; background:var(--soft); color:var(--text); }
+  .chip.me { background:var(--ink); color:var(--ink-t); }
+
+  .st { flex:0 0 auto; width:24px; height:24px; border-radius:50%; border:2px solid var(--muted); position:relative; }
+  .st.work { border-color:var(--ink); background:conic-gradient(var(--ink) 0 50%, transparent 0 100%); }
+  .st.sched { border-color:var(--ink); background:var(--ink); }
+  .st.sched::after { content:""; position:absolute; inset:6px; border-radius:50%; background:var(--ink-t); }
+  .st.done { border-color:var(--ink); background:var(--ink); }
+  .st.done::after { content:""; position:absolute; left:6px; top:2px; width:5px; height:10px; border:solid var(--ink-t); border-width:0 2px 2px 0; transform:rotate(45deg); }
+
+  /* ---------- нижняя шторка ---------- */
+  dialog { border:0; padding:0; margin:auto 0 0; width:100%; max-width:100%; max-height:92dvh; background:var(--sheet); color:var(--text);
+    border-radius:28px 28px 0 0; overflow:hidden; }
+  @media (min-width:700px) { dialog { margin:auto; width:560px; border-radius:28px; max-height:88vh; } }
+  dialog[open] { animation:up .28s cubic-bezier(.2,.8,.2,1); }
+  dialog::backdrop { background:rgba(0,0,0,.45); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+  @keyframes up { from { transform:translateY(40px); opacity:0; } to { transform:none; opacity:1; } }
+  .grab { width:38px; height:5px; border-radius:3px; background:var(--line); margin:8px auto 0; }
+  .dh { padding:12px 20px 10px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .dh .t { font-size:24px; font-weight:800; letter-spacing:-.02em; line-height:1.15; }
+  .dh .s { color:var(--muted); font-size:14px; margin-top:2px; }
+  .x { flex:0 0 auto; width:32px; height:32px; border-radius:50%; border:0; background:var(--soft); font-size:18px; line-height:1; cursor:pointer; color:var(--muted); }
+  .db { padding:4px 20px calc(24px + env(safe-area-inset-bottom)); overflow-y:auto; max-height:calc(92dvh - 80px); -webkit-overflow-scrolling:touch; }
+
+  .grp { background:var(--card); border-radius:18px; margin-top:8px; overflow:hidden; }
+  .grp .r { padding:11px 16px; border-top:1px solid var(--line); }
+  .grp .r:first-child { border-top:0; }
+  .lbl { font-size:12px; color:var(--muted); font-weight:600; margin-bottom:1px; }
+  .pre { white-space:pre-wrap; word-break:break-word; }
+  a { color:var(--text); text-decoration:underline; text-underline-offset:3px; text-decoration-color:var(--muted); }
+
+  .note { margin-top:14px; padding:13px 16px; background:var(--card); border-radius:16px; font-size:15px; }
+  .note b { font-weight:700; }
+  .big { font-size:22px; font-weight:800; letter-spacing:-.02em; margin-top:2px; }
+
+  .btn { display:flex; align-items:center; justify-content:center; width:100%; min-height:52px; margin-top:12px; border:0; border-radius:16px;
+    font-size:17px; font-weight:700; cursor:pointer; text-decoration:none; background:var(--card); color:var(--text); }
+  .btn.primary { background:var(--ink); color:var(--ink-t); }
+  .btn.ghost { background:var(--card); }
+  .btn.plain { background:transparent; color:var(--muted); font-weight:600; min-height:44px; margin-top:4px; }
+  .btn:active { opacity:.75; }
+  .btn:disabled { opacity:.45; }
+
+  .sec { margin-top:20px; font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  textarea { width:100%; min-height:84px; margin-top:6px; padding:12px 14px; border:0; border-radius:14px; background:var(--card); color:var(--text);
+    font:16px/1.4 inherit; font-family:inherit; resize:vertical; outline:none; }
+  textarea:focus { box-shadow:0 0 0 2px var(--ink); }
+
+  /* ---------- календарь ---------- */
+  .pk { margin-top:12px; background:var(--card); border-radius:20px; padding:14px 12px 4px; }
+  .pk-sum { text-align:center; font-weight:800; font-size:18px; letter-spacing:-.01em; padding-bottom:8px; }
+  .cal-h { display:flex; align-items:center; justify-content:space-between; padding:0 4px 6px; }
+  .cal-h .m { font-weight:700; }
+  .ic { width:36px; height:36px; border:0; border-radius:50%; background:transparent; font-size:22px; line-height:1; cursor:pointer; }
+  .ic:disabled { opacity:.25; }
+  .cal-w, .cal-g { display:grid; grid-template-columns:repeat(7,1fr); text-align:center; }
+  .cal-w span { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; padding:4px 0; }
+  .cal-g button { aspect-ratio:1/1; max-height:44px; margin:2px auto; width:100%; max-width:44px; border:0; border-radius:50%; background:transparent; font-size:16px; cursor:pointer; }
+  .cal-g button.today { box-shadow:inset 0 0 0 1.5px var(--muted); }
+  .cal-g button.sel { background:var(--ink); color:var(--ink-t); font-weight:800; box-shadow:none; }
+  .cal-g button:disabled { color:var(--muted); opacity:.35; cursor:default; }
+  .cal-g i { display:block; }
+
+  /* ---------- барабаны времени (как в часах iPhone) ---------- */
+  .wheels { position:relative; display:flex; align-items:center; justify-content:center; gap:0; height:200px; margin:6px auto 10px; max-width:240px; }
+  .band { position:absolute; left:0; right:0; top:80px; height:40px; background:var(--soft); border-radius:12px; pointer-events:none; }
+  .wheel { position:relative; flex:1; height:200px; overflow-y:scroll; scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch;
+    scrollbar-width:none; overscroll-behavior:contain;
+    -webkit-mask-image:linear-gradient(transparent, #000 32%, #000 68%, transparent); mask-image:linear-gradient(transparent, #000 32%, #000 68%, transparent); }
+  .wheel::-webkit-scrollbar { display:none; }
+  .wheel .sp { display:block; height:80px; }
+  .wheel .it { height:40px; line-height:40px; text-align:center; font-size:22px; color:var(--muted); scroll-snap-align:center; scroll-snap-stop:always; cursor:pointer; font-variant-numeric:tabular-nums; }
+  .wheel .it.sel { color:var(--text); font-weight:800; font-size:25px; }
+  .colon { position:relative; z-index:1; font-size:24px; font-weight:800; width:14px; text-align:center; }
+
+  #toast { position:fixed; left:50%; top:calc(14px + env(safe-area-inset-top)); transform:translate(-50%,-20px); background:var(--ink); color:var(--ink-t);
+    padding:11px 18px; border-radius:30px; font-size:14px; font-weight:600; opacity:0; pointer-events:none; transition:all .25s ease; max-width:90vw; z-index:99; text-align:center; }
+  #toast.show { opacity:1; transform:translate(-50%,0); }
+  .gate { max-width:420px; margin:90px auto; padding:0 24px; text-align:center; color:var(--muted); }
 </style>
 </head>
 <body>
 <header>
-  <div><h1>Точки</h1><div id="who"></div></div>
+  <div><h1>Точки</h1><div id="who">&nbsp;</div></div>
   <div id="sync"><i></i><span>загрузка…</span></div>
 </header>
-<div class="bar">
-  <label><input type="checkbox" id="onlyMine"> Только мои точки</label>
+<div class="tools">
+  <div class="seg" id="seg"><button data-f="all" class="on">Все</button><button data-f="mine">Мои</button></div>
   <div id="stats"></div>
 </div>
-<main id="list"></main>
-<dialog id="dlg"><div id="dlgBody"></div></dialog>
+<main id="list"><div class="empty">Загрузка…</div></main>
+<dialog id="dlg"><div class="grab"></div><div id="dlgBody"></div></dialog>
 <div id="toast"></div>
 
 <script>
 /* ===== НАСТРОЙКА ===== */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbya4k0DQmu5HXcXJMoFq_vqcx2gmw0ajSIqf6cf-WGBKE01D2aDbHZ4hfUuLEx4RCqKqw/exec',  // заканчивается на /exec
+  API_URL: 'https://script.google.com/macros/s/AKfycbya4k0DQmu5HXcXJMoFq_vqcx2gmw0ajSIqf6cf-WGBKE01D2aDbHZ4hfUuLEx4RCqKqw/exec',
   POLL_MS: 10000,   // как часто обновлять (мс)
-  CITY: 'Самара'          // например 'Самара' — добавляется к адресу в ссылке на карту
+  CITY: ''          // например 'Самара' — уточняет ссылку на карту
 };
 /* ==================== */
 
 const ST = { WAIT:'ожидает', WORK:'в работе', SCHED:'назначена дата', DONE:'выполнена' };
 const GROUPS = [
-  { s: ST.WAIT,  title: 'Ожидают взятия в работу', cls: '' },
-  { s: ST.WORK,  title: 'Взяты в работу',          cls: 's-work' },
-  { s: ST.SCHED, title: 'Назначена дата',          cls: 's-sched' },
-  { s: ST.DONE,  title: 'Выполнены',               cls: 's-done' }
+  { s: ST.WAIT,  title: 'Ожидают',        full: 'Ожидает взятия в работу', cls: 'wait' },
+  { s: ST.WORK,  title: 'В работе',       full: 'Взята в работу',          cls: 'work' },
+  { s: ST.SCHED, title: 'Назначена дата', full: 'Назначена дата',          cls: 'sched' },
+  { s: ST.DONE,  title: 'Выполнены',      full: 'Выполнена',               cls: 'done' }
 ];
 
 const KEY = new URLSearchParams(location.search).get('k') || '';
 const $ = (id) => document.getElementById(id);
-const state = { points: [], json: '', user: '', openId: null, sig: '', busy: false, loading: false };
+const state = { points: [], json: '', user: '', openId: null, sig: '', busy: false, loading: false,
+                filter: 'all', justScheduled: null, showResults: false, pk: null };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad = (n) => String(n).padStart(2, '0');
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 function fmtDate(s) {
   if (!s) return '';
   const d = new Date(s);
   if (isNaN(d)) return s;
-  return d.toLocaleString('ru-RU', { weekday:'short', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' });
-}
-function fmtStamp(s) {
-  const d = new Date(s);
-  return isNaN(d) ? '' : d.toLocaleString('ru-RU', { day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' });
+  return cap(d.toLocaleString('ru-RU', { weekday:'short', day:'numeric', month:'long' })) + ' · ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 function linkify(text) {
-  return esc(text).replace(/(\+?[78][\s\d()\-]{9,}\d)/g, (m) => {
-    const digits = m.replace(/[^\d+]/g, '');
-    return `<a href="tel:${digits}">${m}</a>`;
-  });
+  return esc(text).replace(/(\+?[78][\s\d()\-]{9,}\d)/g, (m) => `<a href="tel:${m.replace(/[^\d+]/g, '')}">${m}</a>`);
 }
 function mapUrl(p) {
-  const q = [CONFIG.CITY, p.address].filter(Boolean).join(', ');
-  return 'https://yandex.ru/maps/?text=' + encodeURIComponent(q);
-}
-function calUrl(p) {
-  const s = new Date(p.date), e = new Date(s.getTime() + 3600e3);
-  const f = (d) => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
-    + '&text=' + encodeURIComponent('Встреча: ' + p.name)
-    + '&dates=' + f(s) + '/' + f(e)
-    + '&location=' + encodeURIComponent(p.address)
-    + '&details=' + encodeURIComponent(p.contact + '\n\n' + p.task);
-}
-function nowLocalInput() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return 'https://yandex.ru/maps/?text=' + encodeURIComponent([CONFIG.CITY, p.address].filter(Boolean).join(', '));
 }
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 3500);
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 3200);
 }
 function setSync(ok, msg) {
   const el = $('sync');
   el.classList.toggle('bad', !ok);
   el.querySelector('span').textContent = ok
-    ? 'обновлено ' + new Date().toLocaleTimeString('ru-RU')
-    : 'нет связи' + (msg ? ' (' + msg + ')' : '');
+    ? new Date().toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit', second:'2-digit' })
+    : 'нет связи' + (msg ? ' · ' + msg : '');
+}
+
+/* ---------- календарь iPhone (.ics) ---------- */
+function icsText(p) {
+  const s = new Date(p.date), e = new Date(s.getTime() + 3600e3);
+  const f = (d) => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const t = (x) => String(x || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  const fold = (line) => {
+    const ch = Array.from(line), out = [];
+    for (let i = 0; i < ch.length; i += 60) out.push((i ? ' ' : '') + ch.slice(i, i + 60).join(''));
+    return out.join('\r\n');
+  };
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Tochki//RU', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${p.id}-${f(s)}@tochki`, `DTSTAMP:${stamp}`, `DTSTART:${f(s)}`, `DTEND:${f(e)}`,
+    `SUMMARY:${t('Встреча: ' + p.name)}`, `LOCATION:${t(p.address)}`,
+    `DESCRIPTION:${t([p.contact, p.task].filter(Boolean).join('\n\n'))}`,
+    'BEGIN:VALARM', 'TRIGGER:-PT60M', 'ACTION:DISPLAY', 'DESCRIPTION:Встреча через час', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR'
+  ].map(fold).join('\r\n');
+}
+function addToCalendar(p) {
+  const ics = icsText(p);
+  if (isIOS) {                                   // iPhone: откроется окно «Добавить в Календарь»
+    location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+  } else {                                       // компьютер: скачается .ics
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+    a.download = 'vstrecha.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
 }
 
 /* ---------- сеть ---------- */
@@ -174,7 +250,7 @@ async function load() {
 
 async function act(action, extra) {
   state.busy = true;
-  document.querySelectorAll('#dlgBody button').forEach(b => b.disabled = true);
+  document.querySelectorAll('#dlgBody .btn').forEach(b => b.disabled = true);
   try {
     const r = await fetch(CONFIG.API_URL, {
       method: 'POST',
@@ -186,63 +262,63 @@ async function act(action, extra) {
     if (!d.ok) toast(d.error || 'Ошибка');
     return d.ok;
   } catch (e) {
-    toast('Нет связи с сервером, попробуйте ещё раз');
+    toast('Нет связи, попробуйте ещё раз');
     return false;
   } finally {
     state.busy = false;
-    document.querySelectorAll('#dlgBody button').forEach(b => b.disabled = false);
+    document.querySelectorAll('#dlgBody .btn').forEach(b => b.disabled = false);
   }
 }
 
 function applyData(d, force) {
   state.user = d.user || state.user;
-  $('who').textContent = 'Вы: ' + state.user;
+  $('who').textContent = state.user;
   const j = JSON.stringify(d.points);
-  if (j !== state.json) {
-    state.json = j; state.points = d.points;
-    render();
-  }
+  if (j !== state.json) { state.json = j; state.points = d.points; render(); }
   refreshDialog(force);
 }
 
 /* ---------- список ---------- */
 function render() {
-  const only = $('onlyMine').checked;
-  let pts = state.points.filter(p => !only || p.owner === state.user);
-  const html = GROUPS.map(g => {
-    let items = pts.filter(p => p.status === g.s);
+  const only = state.filter === 'mine';
+  const pts = state.points.filter(p => !only || p.owner === state.user);
+  $('list').innerHTML = GROUPS.map(g => {
+    const items = pts.filter(p => p.status === g.s);
     if (g.s === ST.SCHED) items.sort((a, b) => a.date.localeCompare(b.date));
     if (g.s === ST.DONE) items.sort((a, b) => b.done.localeCompare(a.done));
     const cards = items.map(p => `
-      <article class="card ${g.cls}" data-id="${esc(p.id)}">
-        <div class="t">${esc(p.name)}</div>
-        <div class="a">${esc(p.address)}</div>
-        <div class="chips">
-          ${p.owner ? `<span class="chip ${p.owner === state.user ? 'me' : ''}">${esc(p.owner)}</span>` : ''}
-          ${p.date && g.s === ST.SCHED ? `<span class="chip">📅 ${esc(fmtDate(p.date))}</span>` : ''}
+      <article class="card" data-id="${esc(p.id)}">
+        <div>
+          <div class="t">${esc(p.name)}</div>
+          <div class="a">${esc(p.address)}</div>
+          ${(p.owner || (p.date && g.s === ST.SCHED)) ? `<div class="chips">
+            ${p.owner ? `<span class="chip ${p.owner === state.user ? 'me' : ''}">${esc(p.owner)}</span>` : ''}
+            ${p.date && g.s === ST.SCHED ? `<span class="chip">${esc(fmtDate(p.date))}</span>` : ''}
+          </div>` : ''}
         </div>
+        <span class="st ${g.cls}"></span>
       </article>`).join('');
-    return `<h2>${g.title} <span class="n">${items.length}</span></h2>` +
-           (cards || '<div class="empty">Пока пусто</div>');
+    return `<h2>${g.title} <span class="n">${items.length}</span></h2>` + (cards || '<div class="empty">Пусто</div>');
   }).join('');
-  $('list').innerHTML = html;
-  const c = (s) => state.points.filter(p => p.status === s).length;
-  $('stats').textContent = `Всего ${state.points.length} · выполнено ${c(ST.DONE)}`;
+  const done = state.points.filter(p => p.status === ST.DONE).length;
+  $('stats').textContent = `${done} из ${state.points.length} выполнено`;
 }
 
-/* ---------- карточка ---------- */
+/* ---------- шторка ---------- */
 const sigOf = (p) => p ? [p.status, p.owner, p.date].join('|') : '';
 
 function openDialog(id) {
-  state.openId = id;
+  state.openId = id; state.justScheduled = null; state.showResults = false; state.pk = null;
   renderDialog();
   if (!$('dlg').open) $('dlg').showModal();
+  $('dlgBody').scrollTop = 0;
 }
+function closeDialog() { if ($('dlg').open) $('dlg').close(); }
 
 function refreshDialog(force) {
   if (!$('dlg').open) return;
   const p = state.points.find(x => x.id === state.openId);
-  if (!p) { $('dlg').close(); toast('Точка удалена админом'); return; }
+  if (!p) { closeDialog(); toast('Точка удалена админом'); return; }
   if (force || sigOf(p) !== state.sig) {
     const changed = !force && state.sig;
     renderDialog();
@@ -250,7 +326,7 @@ function refreshDialog(force) {
   }
 }
 
-function draftKey(id) { return 'draft:' + id; }
+const draftKey = (id) => 'draft:' + id;
 function readDraft(id) { try { return JSON.parse(localStorage.getItem(draftKey(id)) || '{}'); } catch { return {}; } }
 function saveDraft() {
   const o = { discussed: $('f1')?.value || '', result: $('f2')?.value || '', expectation: $('f3')?.value || '' };
@@ -261,84 +337,206 @@ function renderDialog() {
   const p = state.points.find(x => x.id === state.openId);
   if (!p) return;
   state.sig = sigOf(p);
+  state.pk = null;
   const mine = p.owner === state.user;
-  let actions = '';
+  const g = GROUPS.find(x => x.s === p.status);
+  let body = '';
+
+  const info = `
+    <div class="grp">
+      <div class="r"><div class="lbl">Адрес</div><a href="${mapUrl(p)}" target="_blank" rel="noopener">${esc(p.address) || '—'}</a></div>
+      <div class="r"><div class="lbl">Контакт</div><div class="pre">${linkify(p.contact) || '—'}</div></div>
+      <div class="r"><div class="lbl">Задача</div><div class="pre">${esc(p.task) || '—'}</div></div>
+    </div>`;
 
   if (p.status === ST.WAIT) {
-    actions = `<div class="row"><button class="b" data-act="take">✋ Беру в работу</button></div>`;
+    body = info + `<button class="btn primary" data-act="take">Беру в работу</button>`;
+
   } else if (p.status === ST.WORK) {
-    actions = mine ? `
-      <div class="info">Вы взяли эту точку. Созвонитесь и назначьте встречу.</div>
-      <div class="lbl">Дата и время встречи</div>
-      <div class="row" style="margin-top:4px">
-        <input type="datetime-local" id="dt" min="${nowLocalInput()}">
-        <button class="b" data-act="schedule">📅 Назначить</button>
-      </div>
-      <div class="row"><button class="b dng" data-act="release">Вернуть в очередь</button></div>`
-      : `<div class="info">В работе у: <b>${esc(p.owner)}</b></div>`;
+    body = info + (mine
+      ? `<div class="note">Точка у вас. Созвонитесь с контактом, затем назначьте встречу.</div>
+         <button class="btn primary" data-act="pick">Назначить дату и время</button>
+         <div id="pk"></div>
+         <button class="btn plain" data-act="release">Вернуть в очередь</button>`
+      : `<div class="note">В работе у <b>${esc(p.owner)}</b></div>`);
+
   } else if (p.status === ST.SCHED) {
-    const d = readDraft(p.id);
-    actions = `<div class="info">Встреча: <b>${esc(fmtDate(p.date))}</b> · исполнитель: <b>${esc(p.owner)}</b>
-        <div style="margin-top:6px"><a href="${calUrl(p)}" target="_blank" rel="noopener">➕ Добавить в Google Календарь</a></div></div>`;
-    if (mine) actions += `
-      <div class="lbl">Перенести встречу</div>
-      <div class="row" style="margin-top:4px">
-        <input type="datetime-local" id="dt" value="${esc(p.date)}">
-        <button class="b sec" data-act="schedule">Перенести</button>
-      </div>
-      <hr>
-      <div class="lbl">После встречи заполните три пункта</div>
-      <div class="lbl">1. Что обсудили</div>
-      <textarea id="f1" data-draft>${esc(d.discussed || '')}</textarea>
-      <div class="lbl">2. Какой итог встречи</div>
-      <textarea id="f2" data-draft>${esc(d.result || '')}</textarea>
-      <div class="lbl">3. Какой результат может ожидать отдел продаж</div>
-      <textarea id="f3" data-draft>${esc(d.expectation || '')}</textarea>
-      <div class="row">
-        <button class="b" data-act="complete">✅ Сохранить и завершить</button>
-        <button class="b dng" data-act="release">Вернуть в очередь</button>
-      </div>`;
+    if (mine && state.justScheduled === p.id) {
+      // сразу после назначения — только подтверждение и календарь, без следующих шагов
+      body = `<div class="note">Встреча назначена<div class="big">${esc(fmtDate(p.date))}</div></div>
+        <button class="btn primary" data-act="ics">Добавить в календарь iPhone</button>
+        <button class="btn plain" data-act="close">Готово</button>`;
+    } else {
+      const d = readDraft(p.id);
+      body = `<div class="note">Встреча<div class="big">${esc(fmtDate(p.date))}</div>
+          <div style="color:var(--muted);font-size:14px;margin-top:2px">Исполнитель: ${esc(p.owner)}</div></div>
+        <button class="btn ghost" data-act="ics">Добавить в календарь iPhone</button>` + info;
+      if (mine) {
+        body += `<button class="btn ghost" data-act="pick">Перенести встречу</button><div id="pk"></div>`;
+        if (state.showResults) {
+          body += `<div class="sec">Итоги встречи</div>
+            <div class="lbl" style="margin-top:12px">1. Что обсудили</div>
+            <textarea id="f1" data-draft>${esc(d.discussed || '')}</textarea>
+            <div class="lbl" style="margin-top:12px">2. Какой итог встречи</div>
+            <textarea id="f2" data-draft>${esc(d.result || '')}</textarea>
+            <div class="lbl" style="margin-top:12px">3. Какой результат может ожидать отдел продаж</div>
+            <textarea id="f3" data-draft>${esc(d.expectation || '')}</textarea>
+            <button class="btn primary" data-act="complete">Сохранить итоги</button>`;
+        } else {
+          body += `<button class="btn primary" data-act="results">Внести итоги встречи</button>`;
+        }
+        body += `<button class="btn plain" data-act="release">Вернуть в очередь</button>`;
+      }
+    }
+
   } else if (p.status === ST.DONE) {
-    actions = `<div class="info">Выполнено · исполнитель: <b>${esc(p.owner)}</b>${p.date ? ' · встреча ' + esc(fmtDate(p.date)) : ''}</div>
-      <div class="lbl">1. Что обсудили</div><div class="pre">${esc(p.discussed)}</div>
-      <div class="lbl">2. Итог встречи</div><div class="pre">${esc(p.result)}</div>
-      <div class="lbl">3. Ожидание для отдела продаж</div><div class="pre">${esc(p.expectation)}</div>`;
+    body = `<div class="note">Выполнено · <b>${esc(p.owner)}</b>${p.date ? '<div style="color:var(--muted);font-size:14px;margin-top:2px">Встреча: ' + esc(fmtDate(p.date)) + '</div>' : ''}</div>
+      <div class="grp">
+        <div class="r"><div class="lbl">1. Что обсудили</div><div class="pre">${esc(p.discussed) || '—'}</div></div>
+        <div class="r"><div class="lbl">2. Итог встречи</div><div class="pre">${esc(p.result) || '—'}</div></div>
+        <div class="r"><div class="lbl">3. Ожидание для отдела продаж</div><div class="pre">${esc(p.expectation) || '—'}</div></div>
+      </div>` + info;
   }
 
   $('dlgBody').innerHTML = `
-    <div class="dh"><div><div class="t">${esc(p.name)}</div>
-      <div style="color:var(--muted);font-size:13px">${GROUPS.find(g => g.s === p.status).title}</div></div>
-      <button class="x" data-act="close" aria-label="Закрыть">×</button></div>
-    <div class="db">
-      <div class="lbl" style="margin-top:0">Адрес</div>
-      <div><a href="${mapUrl(p)}" target="_blank" rel="noopener">${esc(p.address)}</a></div>
-      <div class="lbl">Контакт</div><div class="pre">${linkify(p.contact) || '—'}</div>
-      <div class="lbl">Задача</div><div class="pre">${esc(p.task) || '—'}</div>
-      ${actions}
-    </div>`;
+    <div class="dh"><div><div class="t">${esc(p.name)}</div><div class="s">${g.full}</div></div>
+      <button class="x" data-act="close" aria-label="Закрыть">✕</button></div>
+    <div class="db">${body}</div>`;
+}
+
+/* ---------- выбор даты и времени ---------- */
+function mountPicker(p) {
+  const base = p.date && !isNaN(new Date(p.date)) ? new Date(p.date) : (() => {
+    const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(12, 0, 0, 0); return d;
+  })();
+  state.pk = { y: base.getFullYear(), m: base.getMonth(), d: base.getDate(), h: base.getHours(), mi: base.getMinutes(),
+               vy: base.getFullYear(), vm: base.getMonth() };
+  $('pk').innerHTML = `
+    <div class="pk">
+      <div class="pk-sum" id="pkSum"></div>
+      <div class="cal-h">
+        <button class="ic" data-pk="prev" aria-label="Предыдущий месяц">‹</button>
+        <div class="m" id="calT"></div>
+        <button class="ic" data-pk="next" aria-label="Следующий месяц">›</button>
+      </div>
+      <div class="cal-w"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+      <div class="cal-g" id="calG"></div>
+      <div class="wheels">
+        <div class="band"></div>
+        <div class="wheel" id="wh"></div><div class="colon">:</div><div class="wheel" id="wm"></div>
+      </div>
+    </div>
+    <button class="btn primary" data-act="schedule">${p.status === ST.SCHED ? 'Сохранить новое время' : 'Назначить встречу'}</button>`;
+  renderCal();
+  buildWheel('wh', 24, state.pk.h);
+  buildWheel('wm', 60, state.pk.mi);
+  updateSum();
+  $('pk').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderCal() {
+  const k = state.pk;
+  const first = new Date(k.vy, k.vm, 1);
+  const lead = (first.getDay() + 6) % 7;                // неделя с понедельника
+  const days = new Date(k.vy, k.vm + 1, 0).getDate();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  $('calT').textContent = cap(first.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }));
+  const isCurMonth = k.vy === today.getFullYear() && k.vm === today.getMonth();
+  document.querySelector('[data-pk="prev"]').disabled = isCurMonth;
+  let h = '<i></i>'.repeat(lead);
+  for (let d = 1; d <= days; d++) {
+    const dt = new Date(k.vy, k.vm, d);
+    const past = dt < today;
+    const sel = k.y === k.vy && k.m === k.vm && k.d === d;
+    const isToday = dt.getTime() === today.getTime();
+    h += `<button data-day="${d}" class="${sel ? 'sel' : ''} ${isToday ? 'today' : ''}" ${past ? 'disabled' : ''}>${d}</button>`;
+  }
+  $('calG').innerHTML = h;
+}
+
+function buildWheel(id, n, val) {
+  const el = $(id);
+  el.innerHTML = '<i class="sp"></i>' +
+    Array.from({ length: n }, (_, i) => `<div class="it" data-i="${i}">${pad(i)}</div>`).join('') + '<i class="sp"></i>';
+  const mark = (i) => {
+    if (el._sel) el._sel.classList.remove('sel');
+    el._sel = el.children[i + 1]; el._sel.classList.add('sel');
+  };
+  el.scrollTop = val * 40;
+  mark(val);
+  let raf;
+  el.addEventListener('scroll', () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const i = Math.max(0, Math.min(n - 1, Math.round(el.scrollTop / 40)));
+      mark(i);
+      if (id === 'wh') state.pk.h = i; else state.pk.mi = i;
+      updateSum();
+    });
+  });
+  el.addEventListener('click', (e) => {
+    const it = e.target.closest('.it');
+    if (it) el.scrollTo({ top: it.dataset.i * 40, behavior: 'smooth' });
+  });
+}
+
+function updateSum() {
+  const k = state.pk; if (!k) return;
+  const d = new Date(k.y, k.m, k.d, k.h, k.mi);
+  $('pkSum').textContent = cap(d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' })) + ' · ' + pad(k.h) + ':' + pad(k.mi);
 }
 
 /* ---------- события ---------- */
-$('list').addEventListener('click', (e) => {
-  const c = e.target.closest('.card'); if (c) openDialog(c.dataset.id);
+$('list').addEventListener('click', (e) => { const c = e.target.closest('.card'); if (c) openDialog(c.dataset.id); });
+$('seg').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  state.filter = b.dataset.f;
+  document.querySelectorAll('#seg button').forEach(x => x.classList.toggle('on', x === b));
+  render();
 });
-$('onlyMine').addEventListener('change', render);
-$('dlg').addEventListener('click', (e) => { if (e.target === $('dlg')) $('dlg').close(); });
-$('dlg').addEventListener('close', () => { state.openId = null; state.sig = ''; });
+$('dlg').addEventListener('click', (e) => { if (e.target === $('dlg')) closeDialog(); });
+$('dlg').addEventListener('close', () => { state.openId = null; state.sig = ''; state.justScheduled = null; state.showResults = false; state.pk = null; });
 $('dlgBody').addEventListener('input', (e) => { if (e.target.matches('[data-draft]')) saveDraft(); });
 
 $('dlgBody').addEventListener('click', async (e) => {
+  // навигация по календарю и выбор дня
+  const pkb = e.target.closest('[data-pk]');
+  if (pkb && state.pk) {
+    const k = state.pk, m = k.vm + (pkb.dataset.pk === 'next' ? 1 : -1);
+    const dt = new Date(k.vy, m, 1); k.vy = dt.getFullYear(); k.vm = dt.getMonth();
+    return renderCal();
+  }
+  const day = e.target.closest('[data-day]');
+  if (day && state.pk) {
+    const k = state.pk; k.y = k.vy; k.m = k.vm; k.d = +day.dataset.day;
+    renderCal(); return updateSum();
+  }
+
   const btn = e.target.closest('[data-act]'); if (!btn) return;
   const a = btn.dataset.act;
-  if (a === 'close') return $('dlg').close();
-  if (a === 'take') { if (await act('take')) toast('Точка взята в работу'); }
-  else if (a === 'release') {
-    if (confirm('Вернуть точку в очередь? Дата встречи сбросится.')) { if (await act('release')) toast('Точка возвращена в очередь'); }
+  const p = state.points.find(x => x.id === state.openId);
+
+  if (a === 'close') return closeDialog();
+
+  if (a === 'take') {
+    if (await act('take')) { toast('Точка взята в работу'); closeDialog(); }   // следующий шаг — позже
   }
+  else if (a === 'pick') { btn.style.display = 'none'; mountPicker(p); }
   else if (a === 'schedule') {
-    const v = $('dt').value;
-    if (!v) return toast('Выберите дату и время');
-    if (await act('schedule', { date: v })) toast('Встреча назначена');
+    const k = state.pk; if (!k) return;
+    const when = new Date(k.y, k.m, k.d, k.h, k.mi);
+    if (when.getTime() < Date.now() - 60000) return toast('Это время уже прошло');
+    const iso = `${k.y}-${pad(k.m + 1)}-${pad(k.d)}T${pad(k.h)}:${pad(k.mi)}`;
+    state.justScheduled = state.openId;
+    if (!(await act('schedule', { date: iso }))) { state.justScheduled = null; renderDialog(); }
+    else renderDialog();
+  }
+  else if (a === 'ics') { if (p && p.date) addToCalendar(p); }
+  else if (a === 'results') { state.showResults = true; renderDialog(); }
+  else if (a === 'release') {
+    if (confirm('Вернуть точку в очередь? Дата встречи сбросится.')) {
+      if (await act('release')) { toast('Точка возвращена в очередь'); closeDialog(); }
+    }
   }
   else if (a === 'complete') {
     const body = { discussed: $('f1').value, result: $('f2').value, expectation: $('f3').value };
@@ -346,14 +544,13 @@ $('dlgBody').addEventListener('click', async (e) => {
     const id = state.openId;
     if (await act('complete', body)) {
       try { localStorage.removeItem(draftKey(id)); } catch {}
-      toast('Сохранено — точка выполнена');
-      $('dlg').close();
+      toast('Итоги сохранены'); closeDialog();
     }
   }
 });
 
 function gate(msg) {
-  document.querySelector('.bar').remove();
+  document.querySelector('.tools').remove();
   $('list').innerHTML = `<div class="gate">${esc(msg)}</div>`;
   clearInterval(state.timer);
   $('sync').style.display = 'none';
@@ -361,7 +558,6 @@ function gate(msg) {
 
 /* ---------- старт ---------- */
 if (!KEY) gate('Откройте сайт по своей персональной ссылке (с ключом после «?k=»).');
-else if (CONFIG.API_URL.startsWith('ВСТАВЬТЕ')) gate('Не указан API_URL в index.html.');
 else {
   load();
   state.timer = setInterval(() => { if (!document.hidden) load(); }, CONFIG.POLL_MS);
