@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Точки</title>
+<style>
+  :root {
+    --bg:#f4f5f8; --card:#fff; --text:#1c1f2b; --muted:#6b7285; --line:#e2e5ee;
+    --accent:#3f51b5; --accent-t:#fff; --ok:#2e7d32; --warn:#ef6c00; --err:#c62828;
+    --wait:#757575; --work:#1565c0; --sched:#ef6c00; --done:#2e7d32;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161d; --card:#1e212b; --text:#e8eaf2; --muted:#9aa1b5; --line:#2e3240;
+            --accent:#7986cb; --accent-t:#101223; --ok:#66bb6a; --warn:#ffa726; --err:#ef5350;
+            --wait:#9e9e9e; --work:#64b5f6; --sched:#ffa726; --done:#66bb6a; }
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  header { position:sticky; top:0; z-index:5; background:var(--card); border-bottom:1px solid var(--line);
+    padding:10px 16px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  h1 { margin:0; font-size:18px; }
+  #who { color:var(--muted); font-size:13px; }
+  #sync { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  #sync i { width:8px; height:8px; border-radius:50%; background:var(--ok); display:inline-block; }
+  #sync.bad i { background:var(--err); }
+  .bar { max-width:900px; margin:0 auto; padding:12px 16px 0; display:flex; justify-content:space-between;
+    align-items:center; gap:12px; flex-wrap:wrap; color:var(--muted); font-size:13px; }
+  .bar label { display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--text); }
+  main { max-width:900px; margin:0 auto; padding:8px 16px 60px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted);
+    margin:22px 0 8px; display:flex; align-items:center; gap:8px; }
+  h2 .n { background:var(--line); color:var(--text); border-radius:10px; padding:0 8px; font-size:12px; }
+  .empty { color:var(--muted); font-size:13px; padding:4px 2px; }
+  .card { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--wait);
+    border-radius:10px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
+  .card:hover { border-color:var(--accent); }
+  .card.s-work { border-left-color:var(--work); }
+  .card.s-sched { border-left-color:var(--sched); }
+  .card.s-done { border-left-color:var(--done); }
+  .card .t { font-weight:600; }
+  .card .a { color:var(--muted); font-size:13px; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .chip { font-size:12px; border:1px solid var(--line); border-radius:12px; padding:1px 8px; }
+  .chip.me { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  dialog { border:none; border-radius:14px; padding:0; width:min(600px,94vw); max-height:92vh;
+    background:var(--card); color:var(--text); box-shadow:0 10px 40px rgba(0,0,0,.35); }
+  dialog::backdrop { background:rgba(0,0,0,.45); }
+  .dh { padding:14px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; }
+  .dh .t { font-weight:700; font-size:17px; }
+  .x { background:none; border:none; font-size:22px; line-height:1; color:var(--muted); cursor:pointer; }
+  .db { padding:14px 16px 18px; overflow:auto; max-height:calc(92vh - 70px); }
+  .lbl { font-size:12px; color:var(--muted); margin:12px 0 2px; text-transform:uppercase; letter-spacing:.03em; }
+  .pre { white-space:pre-wrap; }
+  a { color:var(--accent); }
+  .info { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin-top:12px; }
+  button.b { font:inherit; border-radius:8px; border:1px solid var(--accent); background:var(--accent);
+    color:var(--accent-t); padding:9px 14px; cursor:pointer; font-weight:600; }
+  button.b.sec { background:transparent; color:var(--accent); }
+  button.b.dng { background:transparent; color:var(--err); border-color:var(--line); font-weight:500; }
+  button.b:disabled { opacity:.5; cursor:wait; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center; }
+  input[type=datetime-local], textarea { font:inherit; width:100%; padding:8px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--bg); color:var(--text); }
+  textarea { min-height:70px; resize:vertical; }
+  .row input[type=datetime-local] { width:auto; flex:1 1 200px; }
+  hr { border:none; border-top:1px solid var(--line); margin:16px 0 4px; }
+  #toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#222; color:#fff;
+    padding:10px 16px; border-radius:10px; font-size:14px; opacity:0; pointer-events:none;
+    transition:opacity .2s; max-width:90vw; z-index:50; text-align:center; }
+  #toast.show { opacity:1; }
+  .gate { max-width:480px; margin:80px auto; padding:0 20px; text-align:center; color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Точки</h1><div id="who"></div></div>
+  <div id="sync"><i></i><span>загрузка…</span></div>
+</header>
+<div class="bar">
+  <label><input type="checkbox" id="onlyMine"> Только мои точки</label>
+  <div id="stats"></div>
+</div>
+<main id="list"></main>
+<dialog id="dlg"><div id="dlgBody"></div></dialog>
+<div id="toast"></div>
+
+<script>
+/* ===== НАСТРОЙКА ===== */
+const CONFIG = {
+  API_URL: 'https://script.google.com/macros/s/AKfycbya4k0DQmu5HXcXJMoFq_vqcx2gmw0ajSIqf6cf-WGBKE01D2aDbHZ4hfUuLEx4RCqKqw/exec',  // заканчивается на /exec
+  POLL_MS: 10000,   // как часто обновлять (мс)
+  CITY: 'Самара'          // например 'Самара' — добавляется к адресу в ссылке на карту
+};
+/* ==================== */
+
+const ST = { WAIT:'ожидает', WORK:'в работе', SCHED:'назначена дата', DONE:'выполнена' };
+const GROUPS = [
+  { s: ST.WAIT,  title: 'Ожидают взятия в работу', cls: '' },
+  { s: ST.WORK,  title: 'Взяты в работу',          cls: 's-work' },
+  { s: ST.SCHED, title: 'Назначена дата',          cls: 's-sched' },
+  { s: ST.DONE,  title: 'Выполнены',               cls: 's-done' }
+];
+
+const KEY = new URLSearchParams(location.search).get('k') || '';
+const $ = (id) => document.getElementById(id);
+const state = { points: [], json: '', user: '', openId: null, sig: '', busy: false, loading: false };
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = (n) => String(n).padStart(2, '0');
+
+function fmtDate(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  if (isNaN(d)) return s;
+  return d.toLocaleString('ru-RU', { weekday:'short', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' });
+}
+function fmtStamp(s) {
+  const d = new Date(s);
+  return isNaN(d) ? '' : d.toLocaleString('ru-RU', { day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' });
+}
+function linkify(text) {
+  return esc(text).replace(/(\+?[78][\s\d()\-]{9,}\d)/g, (m) => {
+    const digits = m.replace(/[^\d+]/g, '');
+    return `<a href="tel:${digits}">${m}</a>`;
+  });
+}
+function mapUrl(p) {
+  const q = [CONFIG.CITY, p.address].filter(Boolean).join(', ');
+  return 'https://yandex.ru/maps/?text=' + encodeURIComponent(q);
+}
+function calUrl(p) {
+  const s = new Date(p.date), e = new Date(s.getTime() + 3600e3);
+  const f = (d) => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + encodeURIComponent('Встреча: ' + p.name)
+    + '&dates=' + f(s) + '/' + f(e)
+    + '&location=' + encodeURIComponent(p.address)
+    + '&details=' + encodeURIComponent(p.contact + '\n\n' + p.task);
+}
+function nowLocalInput() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 3500);
+}
+function setSync(ok, msg) {
+  const el = $('sync');
+  el.classList.toggle('bad', !ok);
+  el.querySelector('span').textContent = ok
+    ? 'обновлено ' + new Date().toLocaleTimeString('ru-RU')
+    : 'нет связи' + (msg ? ' (' + msg + ')' : '');
+}
+
+/* ---------- сеть ---------- */
+async function load() {
+  if (state.loading || state.busy) return;
+  state.loading = true;
+  try {
+    const r = await fetch(`${CONFIG.API_URL}?action=list&k=${encodeURIComponent(KEY)}&t=${Date.now()}`);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    applyData(d);
+    setSync(true);
+  } catch (e) {
+    if (String(e.message) === 'auth') return gate('Ключ доступа не подошёл. Откройте сайт по своей персональной ссылке.');
+    setSync(false, e.message);
+  } finally { state.loading = false; }
+}
+
+async function act(action, extra) {
+  state.busy = true;
+  document.querySelectorAll('#dlgBody button').forEach(b => b.disabled = true);
+  try {
+    const r = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // без preflight
+      body: JSON.stringify({ k: KEY, action, id: state.openId, ...extra })
+    });
+    const d = await r.json();
+    if (d.points) applyData({ ...d, user: state.user }, true);
+    if (!d.ok) toast(d.error || 'Ошибка');
+    return d.ok;
+  } catch (e) {
+    toast('Нет связи с сервером, попробуйте ещё раз');
+    return false;
+  } finally {
+    state.busy = false;
+    document.querySelectorAll('#dlgBody button').forEach(b => b.disabled = false);
+  }
+}
+
+function applyData(d, force) {
+  state.user = d.user || state.user;
+  $('who').textContent = 'Вы: ' + state.user;
+  const j = JSON.stringify(d.points);
+  if (j !== state.json) {
+    state.json = j; state.points = d.points;
+    render();
+  }
+  refreshDialog(force);
+}
+
+/* ---------- список ---------- */
+function render() {
+  const only = $('onlyMine').checked;
+  let pts = state.points.filter(p => !only || p.owner === state.user);
+  const html = GROUPS.map(g => {
+    let items = pts.filter(p => p.status === g.s);
+    if (g.s === ST.SCHED) items.sort((a, b) => a.date.localeCompare(b.date));
+    if (g.s === ST.DONE) items.sort((a, b) => b.done.localeCompare(a.done));
+    const cards = items.map(p => `
+      <article class="card ${g.cls}" data-id="${esc(p.id)}">
+        <div class="t">${esc(p.name)}</div>
+        <div class="a">${esc(p.address)}</div>
+        <div class="chips">
+          ${p.owner ? `<span class="chip ${p.owner === state.user ? 'me' : ''}">${esc(p.owner)}</span>` : ''}
+          ${p.date && g.s === ST.SCHED ? `<span class="chip">📅 ${esc(fmtDate(p.date))}</span>` : ''}
+        </div>
+      </article>`).join('');
+    return `<h2>${g.title} <span class="n">${items.length}</span></h2>` +
+           (cards || '<div class="empty">Пока пусто</div>');
+  }).join('');
+  $('list').innerHTML = html;
+  const c = (s) => state.points.filter(p => p.status === s).length;
+  $('stats').textContent = `Всего ${state.points.length} · выполнено ${c(ST.DONE)}`;
+}
+
+/* ---------- карточка ---------- */
+const sigOf = (p) => p ? [p.status, p.owner, p.date].join('|') : '';
+
+function openDialog(id) {
+  state.openId = id;
+  renderDialog();
+  if (!$('dlg').open) $('dlg').showModal();
+}
+
+function refreshDialog(force) {
+  if (!$('dlg').open) return;
+  const p = state.points.find(x => x.id === state.openId);
+  if (!p) { $('dlg').close(); toast('Точка удалена админом'); return; }
+  if (force || sigOf(p) !== state.sig) {
+    const changed = !force && state.sig;
+    renderDialog();
+    if (changed) toast('Точка изменилась — данные обновлены');
+  }
+}
+
+function draftKey(id) { return 'draft:' + id; }
+function readDraft(id) { try { return JSON.parse(localStorage.getItem(draftKey(id)) || '{}'); } catch { return {}; } }
+function saveDraft() {
+  const o = { discussed: $('f1')?.value || '', result: $('f2')?.value || '', expectation: $('f3')?.value || '' };
+  try { localStorage.setItem(draftKey(state.openId), JSON.stringify(o)); } catch {}
+}
+
+function renderDialog() {
+  const p = state.points.find(x => x.id === state.openId);
+  if (!p) return;
+  state.sig = sigOf(p);
+  const mine = p.owner === state.user;
+  let actions = '';
+
+  if (p.status === ST.WAIT) {
+    actions = `<div class="row"><button class="b" data-act="take">✋ Беру в работу</button></div>`;
+  } else if (p.status === ST.WORK) {
+    actions = mine ? `
+      <div class="info">Вы взяли эту точку. Созвонитесь и назначьте встречу.</div>
+      <div class="lbl">Дата и время встречи</div>
+      <div class="row" style="margin-top:4px">
+        <input type="datetime-local" id="dt" min="${nowLocalInput()}">
+        <button class="b" data-act="schedule">📅 Назначить</button>
+      </div>
+      <div class="row"><button class="b dng" data-act="release">Вернуть в очередь</button></div>`
+      : `<div class="info">В работе у: <b>${esc(p.owner)}</b></div>`;
+  } else if (p.status === ST.SCHED) {
+    const d = readDraft(p.id);
+    actions = `<div class="info">Встреча: <b>${esc(fmtDate(p.date))}</b> · исполнитель: <b>${esc(p.owner)}</b>
+        <div style="margin-top:6px"><a href="${calUrl(p)}" target="_blank" rel="noopener">➕ Добавить в Google Календарь</a></div></div>`;
+    if (mine) actions += `
+      <div class="lbl">Перенести встречу</div>
+      <div class="row" style="margin-top:4px">
+        <input type="datetime-local" id="dt" value="${esc(p.date)}">
+        <button class="b sec" data-act="schedule">Перенести</button>
+      </div>
+      <hr>
+      <div class="lbl">После встречи заполните три пункта</div>
+      <div class="lbl">1. Что обсудили</div>
+      <textarea id="f1" data-draft>${esc(d.discussed || '')}</textarea>
+      <div class="lbl">2. Какой итог встречи</div>
+      <textarea id="f2" data-draft>${esc(d.result || '')}</textarea>
+      <div class="lbl">3. Какой результат может ожидать отдел продаж</div>
+      <textarea id="f3" data-draft>${esc(d.expectation || '')}</textarea>
+      <div class="row">
+        <button class="b" data-act="complete">✅ Сохранить и завершить</button>
+        <button class="b dng" data-act="release">Вернуть в очередь</button>
+      </div>`;
+  } else if (p.status === ST.DONE) {
+    actions = `<div class="info">Выполнено · исполнитель: <b>${esc(p.owner)}</b>${p.date ? ' · встреча ' + esc(fmtDate(p.date)) : ''}</div>
+      <div class="lbl">1. Что обсудили</div><div class="pre">${esc(p.discussed)}</div>
+      <div class="lbl">2. Итог встречи</div><div class="pre">${esc(p.result)}</div>
+      <div class="lbl">3. Ожидание для отдела продаж</div><div class="pre">${esc(p.expectation)}</div>`;
+  }
+
+  $('dlgBody').innerHTML = `
+    <div class="dh"><div><div class="t">${esc(p.name)}</div>
+      <div style="color:var(--muted);font-size:13px">${GROUPS.find(g => g.s === p.status).title}</div></div>
+      <button class="x" data-act="close" aria-label="Закрыть">×</button></div>
+    <div class="db">
+      <div class="lbl" style="margin-top:0">Адрес</div>
+      <div><a href="${mapUrl(p)}" target="_blank" rel="noopener">${esc(p.address)}</a></div>
+      <div class="lbl">Контакт</div><div class="pre">${linkify(p.contact) || '—'}</div>
+      <div class="lbl">Задача</div><div class="pre">${esc(p.task) || '—'}</div>
+      ${actions}
+    </div>`;
+}
+
+/* ---------- события ---------- */
+$('list').addEventListener('click', (e) => {
+  const c = e.target.closest('.card'); if (c) openDialog(c.dataset.id);
+});
+$('onlyMine').addEventListener('change', render);
+$('dlg').addEventListener('click', (e) => { if (e.target === $('dlg')) $('dlg').close(); });
+$('dlg').addEventListener('close', () => { state.openId = null; state.sig = ''; });
+$('dlgBody').addEventListener('input', (e) => { if (e.target.matches('[data-draft]')) saveDraft(); });
+
+$('dlgBody').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-act]'); if (!btn) return;
+  const a = btn.dataset.act;
+  if (a === 'close') return $('dlg').close();
+  if (a === 'take') { if (await act('take')) toast('Точка взята в работу'); }
+  else if (a === 'release') {
+    if (confirm('Вернуть точку в очередь? Дата встречи сбросится.')) { if (await act('release')) toast('Точка возвращена в очередь'); }
+  }
+  else if (a === 'schedule') {
+    const v = $('dt').value;
+    if (!v) return toast('Выберите дату и время');
+    if (await act('schedule', { date: v })) toast('Встреча назначена');
+  }
+  else if (a === 'complete') {
+    const body = { discussed: $('f1').value, result: $('f2').value, expectation: $('f3').value };
+    if (!body.discussed.trim() || !body.result.trim() || !body.expectation.trim()) return toast('Заполните все три пункта');
+    const id = state.openId;
+    if (await act('complete', body)) {
+      try { localStorage.removeItem(draftKey(id)); } catch {}
+      toast('Сохранено — точка выполнена');
+      $('dlg').close();
+    }
+  }
+});
+
+function gate(msg) {
+  document.querySelector('.bar').remove();
+  $('list').innerHTML = `<div class="gate">${esc(msg)}</div>`;
+  clearInterval(state.timer);
+  $('sync').style.display = 'none';
+}
+
+/* ---------- старт ---------- */
+if (!KEY) gate('Откройте сайт по своей персональной ссылке (с ключом после «?k=»).');
+else if (CONFIG.API_URL.startsWith('ВСТАВЬТЕ')) gate('Не указан API_URL в index.html.');
+else {
+  load();
+  state.timer = setInterval(() => { if (!document.hidden) load(); }, CONFIG.POLL_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+}
+</script>
+</body>
+</html>
