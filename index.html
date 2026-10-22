@@ -169,7 +169,7 @@ const KEY = new URLSearchParams(location.search).get('k') || '';
 const $ = (id) => document.getElementById(id);
 const state = { points: [], json: '', user: '', openId: null, sig: '', busy: false, loading: false,
                 filter: 'all', justScheduled: null, showResults: false, pk: null,
-                pending: 0, seq: 0, ts: 0 };
+                pending: 0, seq: 0, ts: 0, queue: [], fails: 0, flushing: false, flushAt: 0 };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad = (n) => String(n).padStart(2, '0');
@@ -224,7 +224,10 @@ function icsText(p) {
 function addToCalendar(p) {
   const ics = icsText(p);
   if (isIOS) {                                   // iPhone: откроется окно «Добавить в Календарь»
-    location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+    const a = document.createElement('a');
+    a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+    a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
   } else {                                       // компьютер: скачается .ics
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
@@ -234,23 +237,31 @@ function addToCalendar(p) {
 }
 
 /* ---------- сеть ---------- */
-async function load() {
-  if (state.loading || state.pending) return;
-  state.loading = true;
-  const seq = state.seq;
-  try {
-    const r = await fetch(`${CONFIG.API_URL}?action=list&k=${encodeURIComponent(KEY)}&t=${Date.now()}`);
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.error);
-    if (state.seq === seq && !state.pending) applyData(d);   // ответ устарел, если за это время было действие
-    setSync(true);
-  } catch (e) {
-    if (String(e.message) === 'auth') return gate('Ключ доступа не подошёл. Откройте сайт по своей персональной ссылке.');
-    setSync(false, e.message);
-  } finally { state.loading = false; }
+const POST_HDR = { 'Content-Type': 'text/plain;charset=utf-8' };   // без preflight
+const OUT_KEY = 'outbox:' + KEY;
+
+// fetch с таймаутом: на iPhone запрос может «зависнуть» при сворачивании Safari и заблокировать обновления навсегда
+async function fetchJson(url, opts, ms) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  try { const r = await fetch(url, { ...opts, signal: c.signal }); return await r.json(); }
+  finally { clearTimeout(t); }
 }
 
-// Локальное (мгновенное) применение действия — сервер потом подтвердит
+/* Очередь отправки: действие сначала сохраняется на телефоне и уходит на сервер с повторами,
+   поэтому его не потерять, даже если закрыть сайт или пропадёт связь. */
+function persistQueue() {
+  try { localStorage.setItem(OUT_KEY, JSON.stringify(state.queue)); } catch {}
+  state.pending = state.queue.length;
+  showBadge();
+}
+function showBadge() {
+  if (!state.pending) return;
+  const el = $('sync'); el.classList.remove('bad');
+  el.querySelector('span').textContent = 'сохраняю…';
+}
+
+// Локальное (мгновенное) применение действия
 function applyLocal(p, action, x) {
   const q = { ...p };
   if (action === 'take') { q.status = ST.WORK; q.owner = state.user; }
@@ -259,35 +270,70 @@ function applyLocal(p, action, x) {
   else if (action === 'complete') { q.status = ST.DONE; q.discussed = x.discussed; q.result = x.result; q.expectation = x.expectation; q.done = new Date().toISOString(); }
   return q;
 }
+function overlay(points) {      // серверные данные + ещё не отправленные действия
+  return state.queue.reduce((pts, it) => pts.map(p => p.id === it.id ? applyLocal(p, it.action, it.extra || {}) : p), points);
+}
 
-// Оптимистичное действие: интерфейс обновляется сразу, запрос идёт в фоне
-async function act(action, extra, id) {
+function act(action, extra, id) {
   id = id || state.openId;
-  const before = state.points;
-  state.seq++; state.pending++;
-  setPoints(before.map(p => p.id === id ? applyLocal(p, action, extra || {}) : p));
+  state.seq++;
+  state.queue.push({ oid: Date.now() + '-' + Math.random().toString(36).slice(2, 7), action, id, extra: extra || {}, tries: 0 });
+  persistQueue();
+  setPoints(state.points.map(p => p.id === id ? applyLocal(p, action, extra || {}) : p));
   refreshDialog(true);
-  let ok = false;
+  flush();
+}
+
+async function flush() {
+  if (state.flushing && Date.now() - state.flushAt < 45000) return;
+  if (!state.queue.length) return;
+  state.flushing = true; state.flushAt = Date.now();
+  let failed = false;
   try {
-    const r = await fetch(CONFIG.API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // без preflight
-      body: JSON.stringify({ k: KEY, action, id, ...extra })
-    });
-    const d = await r.json();
-    ok = !!d.ok;
-    if (d.points) acceptServer(d);
-    else setPoints(before);
-    if (!ok) toast(d.error || 'Ошибка');
+    while (state.queue.length) {
+      const it = state.queue[0];
+      let d;
+      try {
+        d = await fetchJson(CONFIG.API_URL, { method: 'POST', headers: POST_HDR,
+          body: JSON.stringify({ k: KEY, action: it.action, id: it.id, ...it.extra }) }, 30000);
+      } catch (e) {                                  // нет связи / обрыв: оставляем в очереди и повторяем
+        setSync(false, 'не отправлено, повторю');
+        setTimeout(flush, 4000);
+        return;
+      }
+      if (d.error === 'auth') return gate('Ключ доступа не подошёл. Откройте сайт по своей персональной ссылке.');
+      if (!d.ok && !d.points) {                      // сбой на стороне Google (не отказ по правилам) — повторяем
+        it.tries = (it.tries || 0) + 1;
+        if (it.tries < 5) { persistQueue(); setSync(false, 'повторю'); setTimeout(flush, 4000); return; }
+      }
+      state.queue = state.queue.filter(x => x.oid !== it.oid);
+      persistQueue();
+      state.seq++;
+      if (d.points) acceptServer(d);
+      if (d.ok) { if (it.action === 'complete') { try { localStorage.removeItem(draftKey(it.id)); } catch {} } }
+      else { failed = true; toast(d.error || 'Не удалось сохранить'); if (state.justScheduled === it.id) state.justScheduled = null; }
+    }
+  } finally { state.flushing = false; }
+  state.pending = 0;
+  setSync(true);
+  const waiting = $('dlgBody').querySelector('[data-act=ics][disabled]');
+  refreshDialog(failed || !!waiting);
+}
+
+async function load() {
+  if (state.loading || state.pending) return;
+  state.loading = true;
+  const seq = state.seq;
+  try {
+    const d = await fetchJson(`${CONFIG.API_URL}?action=list&k=${encodeURIComponent(KEY)}&t=${Date.now()}`, {}, 15000);
+    if (!d.ok) throw new Error(d.error);
+    state.fails = 0;
+    if (state.seq === seq && !state.pending) applyData(d);   // ответ устарел, если за это время было действие
+    setSync(true);
   } catch (e) {
-    setPoints(before);
-    toast('Нет связи — действие не сохранилось');
-  } finally {
-    state.pending--; state.seq++;
-    if (!ok) { if (state.justScheduled === id) state.justScheduled = null; }
-    refreshDialog(true);
-  }
-  return ok;
+    if (String(e.message) === 'auth') return gate('Ключ доступа не подошёл. Откройте сайт по своей персональной ссылке.');
+    if (++state.fails >= 2) setSync(false);                  // одиночный сбой не показываем
+  } finally { state.loading = false; }
 }
 
 function setPoints(points) {
@@ -298,8 +344,8 @@ function setPoints(points) {
 function acceptServer(d) {
   if (d.ts && d.ts < state.ts) return;          // более старый ответ — игнорируем
   state.ts = d.ts || state.ts;
-  setPoints(d.points);
   try { localStorage.setItem('cache:' + KEY, JSON.stringify({ user: state.user, points: d.points })); } catch {}
+  setPoints(state.queue.length ? overlay(d.points) : d.points);
 }
 
 function applyData(d) {
@@ -395,13 +441,13 @@ function renderDialog() {
     if (mine && state.justScheduled === p.id) {
       // сразу после назначения — только подтверждение и календарь, без следующих шагов
       body = `<div class="note">Встреча назначена<div class="big">${esc(fmtDate(p.date))}</div></div>
-        <button class="btn primary" data-act="ics">Добавить в календарь iPhone</button>
+        <button class="btn primary" data-act="ics" ${state.pending ? 'disabled' : ''}>${state.pending ? 'Сохраняю встречу…' : 'Добавить в календарь iPhone'}</button>
         <button class="btn plain" data-act="close">Готово</button>`;
     } else {
       const d = readDraft(p.id);
       body = `<div class="note">Встреча<div class="big">${esc(fmtDate(p.date))}</div>
           <div style="color:var(--muted);font-size:14px;margin-top:2px">Исполнитель: ${esc(p.owner)}</div></div>
-        <button class="btn ghost" data-act="ics">Добавить в календарь iPhone</button>` + info;
+        <button class="btn ghost" data-act="ics" ${state.pending ? 'disabled' : ''}>${state.pending ? 'Сохраняю…' : 'Добавить в календарь iPhone'}</button>` + info;
       if (mine) {
         body += `<button class="btn ghost" data-act="pick">Перенести встречу</button><div id="pk"></div>`;
         if (state.showResults) {
@@ -577,7 +623,7 @@ $('dlgBody').addEventListener('click', async (e) => {
     if (!body.discussed.trim() || !body.result.trim() || !body.expectation.trim()) return toast('Заполните все три пункта');
     const id = state.openId;
     closeDialog(); toast('Итоги сохранены');
-    act('complete', body, id).then(ok => { if (ok) { try { localStorage.removeItem(draftKey(id)); } catch {} } });
+    act('complete', body, id);                              // черновик удалится после подтверждения сервером
   }
 });
 
@@ -591,13 +637,18 @@ function gate(msg) {
 /* ---------- старт ---------- */
 if (!KEY) gate('Откройте сайт по своей персональной ссылке (с ключом после «?k=»).');
 else {
-  try {                                          // показываем прошлые данные сразу, пока грузятся свежие
+  try { state.queue = JSON.parse(localStorage.getItem(OUT_KEY) || '[]'); } catch { state.queue = []; }
+  state.pending = state.queue.length;
+  try {                                          // прошлые данные + неотправленные действия — сразу, пока грузятся свежие
     const c = JSON.parse(localStorage.getItem('cache:' + KEY) || 'null');
-    if (c && c.points) { state.user = c.user || ''; $('who').textContent = state.user; setPoints(c.points); }
+    if (c && c.points) { state.user = c.user || ''; $('who').textContent = state.user; setPoints(overlay(c.points)); }
   } catch {}
+  showBadge();
+  flush();
   load();
-  state.timer = setInterval(() => { if (!document.hidden) load(); }, CONFIG.POLL_MS);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  state.timer = setInterval(() => { if (!document.hidden) { flush(); load(); } }, CONFIG.POLL_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { state.loading = false; flush(); load(); } });
+  window.addEventListener('online', () => { flush(); load(); });
 }
 </script>
 </body>
