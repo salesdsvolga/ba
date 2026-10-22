@@ -7,10 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Точки">
+<meta name="apple-mobile-web-app-title" content="Задачи БА">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<title>Точки</title>
+<title>Задачи БА</title>
 <style>
   :root {
     color-scheme: light dark;
@@ -30,8 +30,8 @@
 
   /* ---------- шапка ---------- */
   header { max-width:720px; margin:0 auto; padding:22px 20px 6px; display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
-  h1 { margin:0; font-size:36px; line-height:1.05; letter-spacing:-.03em; font-weight:800; }
-  #who { color:var(--muted); font-size:14px; margin-top:4px; }
+  h1 { margin:0; font-size:34px; line-height:1.05; letter-spacing:-.03em; font-weight:800; }
+  #who { color:var(--text); font-size:26px; line-height:1.15; font-weight:700; letter-spacing:-.02em; margin-top:8px; }
   #sync { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); padding-bottom:6px; white-space:nowrap; }
   #sync i { width:7px; height:7px; border-radius:50%; background:var(--ink); display:inline-block; }
   #sync.bad i { background:transparent; border:1.5px solid var(--muted); }
@@ -99,7 +99,7 @@
 
   .sec { margin-top:20px; font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
   textarea { width:100%; min-height:84px; margin-top:6px; padding:12px 14px; border:0; border-radius:14px; background:var(--card); color:var(--text);
-    font:16px/1.4 inherit; font-family:inherit; resize:vertical; outline:none; }
+    font-family:inherit; font-size:16px; line-height:1.4; resize:vertical; outline:none; -webkit-appearance:none; appearance:none; }
   textarea:focus { box-shadow:0 0 0 2px var(--ink); }
 
   /* ---------- календарь ---------- */
@@ -137,7 +137,7 @@
 </head>
 <body>
 <header>
-  <div><h1>Точки</h1><div id="who">&nbsp;</div></div>
+  <div><h1>Задачи БА</h1><div id="who">&nbsp;</div></div>
   <div id="sync"><i></i><span>загрузка…</span></div>
 </header>
 <div class="tools">
@@ -168,7 +168,8 @@ const GROUPS = [
 const KEY = new URLSearchParams(location.search).get('k') || '';
 const $ = (id) => document.getElementById(id);
 const state = { points: [], json: '', user: '', openId: null, sig: '', busy: false, loading: false,
-                filter: 'all', justScheduled: null, showResults: false, pk: null };
+                filter: 'all', justScheduled: null, showResults: false, pk: null,
+                pending: 0, seq: 0, ts: 0 };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad = (n) => String(n).padStart(2, '0');
@@ -234,13 +235,14 @@ function addToCalendar(p) {
 
 /* ---------- сеть ---------- */
 async function load() {
-  if (state.loading || state.busy) return;
+  if (state.loading || state.pending) return;
   state.loading = true;
+  const seq = state.seq;
   try {
     const r = await fetch(`${CONFIG.API_URL}?action=list&k=${encodeURIComponent(KEY)}&t=${Date.now()}`);
     const d = await r.json();
     if (!d.ok) throw new Error(d.error);
-    applyData(d);
+    if (state.seq === seq && !state.pending) applyData(d);   // ответ устарел, если за это время было действие
     setSync(true);
   } catch (e) {
     if (String(e.message) === 'auth') return gate('Ключ доступа не подошёл. Откройте сайт по своей персональной ссылке.');
@@ -248,34 +250,63 @@ async function load() {
   } finally { state.loading = false; }
 }
 
-async function act(action, extra) {
-  state.busy = true;
-  document.querySelectorAll('#dlgBody .btn').forEach(b => b.disabled = true);
+// Локальное (мгновенное) применение действия — сервер потом подтвердит
+function applyLocal(p, action, x) {
+  const q = { ...p };
+  if (action === 'take') { q.status = ST.WORK; q.owner = state.user; }
+  else if (action === 'release') { q.status = ST.WAIT; q.owner = ''; q.date = ''; }
+  else if (action === 'schedule') { q.status = ST.SCHED; q.date = x.date; }
+  else if (action === 'complete') { q.status = ST.DONE; q.discussed = x.discussed; q.result = x.result; q.expectation = x.expectation; q.done = new Date().toISOString(); }
+  return q;
+}
+
+// Оптимистичное действие: интерфейс обновляется сразу, запрос идёт в фоне
+async function act(action, extra, id) {
+  id = id || state.openId;
+  const before = state.points;
+  state.seq++; state.pending++;
+  setPoints(before.map(p => p.id === id ? applyLocal(p, action, extra || {}) : p));
+  refreshDialog(true);
+  let ok = false;
   try {
     const r = await fetch(CONFIG.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // без preflight
-      body: JSON.stringify({ k: KEY, action, id: state.openId, ...extra })
+      body: JSON.stringify({ k: KEY, action, id, ...extra })
     });
     const d = await r.json();
-    if (d.points) applyData({ ...d, user: state.user }, true);
-    if (!d.ok) toast(d.error || 'Ошибка');
-    return d.ok;
+    ok = !!d.ok;
+    if (d.points) acceptServer(d);
+    else setPoints(before);
+    if (!ok) toast(d.error || 'Ошибка');
   } catch (e) {
-    toast('Нет связи, попробуйте ещё раз');
-    return false;
+    setPoints(before);
+    toast('Нет связи — действие не сохранилось');
   } finally {
-    state.busy = false;
-    document.querySelectorAll('#dlgBody .btn').forEach(b => b.disabled = false);
+    state.pending--; state.seq++;
+    if (!ok) { if (state.justScheduled === id) state.justScheduled = null; }
+    refreshDialog(true);
   }
+  return ok;
 }
 
-function applyData(d, force) {
+function setPoints(points) {
+  const j = JSON.stringify(points);
+  if (j !== state.json) { state.json = j; state.points = points; render(); }
+}
+
+function acceptServer(d) {
+  if (d.ts && d.ts < state.ts) return;          // более старый ответ — игнорируем
+  state.ts = d.ts || state.ts;
+  setPoints(d.points);
+  try { localStorage.setItem('cache:' + KEY, JSON.stringify({ user: state.user, points: d.points })); } catch {}
+}
+
+function applyData(d) {
   state.user = d.user || state.user;
   $('who').textContent = state.user;
-  const j = JSON.stringify(d.points);
-  if (j !== state.json) { state.json = j; state.points = d.points; render(); }
-  refreshDialog(force);
+  acceptServer(d);
+  refreshDialog(false);
 }
 
 /* ---------- список ---------- */
@@ -519,7 +550,9 @@ $('dlgBody').addEventListener('click', async (e) => {
   if (a === 'close') return closeDialog();
 
   if (a === 'take') {
-    if (await act('take')) { toast('Точка взята в работу'); closeDialog(); }   // следующий шаг — позже
+    const id = state.openId;
+    closeDialog(); toast('Точка взята в работу');           // следующий шаг — позже
+    act('take', {}, id);
   }
   else if (a === 'pick') { btn.style.display = 'none'; mountPicker(p); }
   else if (a === 'schedule') {
@@ -528,24 +561,23 @@ $('dlgBody').addEventListener('click', async (e) => {
     if (when.getTime() < Date.now() - 60000) return toast('Это время уже прошло');
     const iso = `${k.y}-${pad(k.m + 1)}-${pad(k.d)}T${pad(k.h)}:${pad(k.mi)}`;
     state.justScheduled = state.openId;
-    if (!(await act('schedule', { date: iso }))) { state.justScheduled = null; renderDialog(); }
-    else renderDialog();
+    act('schedule', { date: iso });                          // экран подтверждения появляется сразу
   }
   else if (a === 'ics') { if (p && p.date) addToCalendar(p); }
   else if (a === 'results') { state.showResults = true; renderDialog(); }
   else if (a === 'release') {
     if (confirm('Вернуть точку в очередь? Дата встречи сбросится.')) {
-      if (await act('release')) { toast('Точка возвращена в очередь'); closeDialog(); }
+      const id = state.openId;
+      closeDialog(); toast('Точка возвращена в очередь');
+      act('release', {}, id);
     }
   }
   else if (a === 'complete') {
     const body = { discussed: $('f1').value, result: $('f2').value, expectation: $('f3').value };
     if (!body.discussed.trim() || !body.result.trim() || !body.expectation.trim()) return toast('Заполните все три пункта');
     const id = state.openId;
-    if (await act('complete', body)) {
-      try { localStorage.removeItem(draftKey(id)); } catch {}
-      toast('Итоги сохранены'); closeDialog();
-    }
+    closeDialog(); toast('Итоги сохранены');
+    act('complete', body, id).then(ok => { if (ok) { try { localStorage.removeItem(draftKey(id)); } catch {} } });
   }
 });
 
@@ -559,6 +591,10 @@ function gate(msg) {
 /* ---------- старт ---------- */
 if (!KEY) gate('Откройте сайт по своей персональной ссылке (с ключом после «?k=»).');
 else {
+  try {                                          // показываем прошлые данные сразу, пока грузятся свежие
+    const c = JSON.parse(localStorage.getItem('cache:' + KEY) || 'null');
+    if (c && c.points) { state.user = c.user || ''; $('who').textContent = state.user; setPoints(c.points); }
+  } catch {}
   load();
   state.timer = setInterval(() => { if (!document.hidden) load(); }, CONFIG.POLL_MS);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
