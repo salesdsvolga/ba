@@ -403,10 +403,26 @@ function refreshDialog(force) {
   }
 }
 
+/* Название мероприятия хранится первой строкой в колонке «Что обсудили» —
+   так не нужно менять ни таблицу, ни скрипт. */
+const EV_PREFIX = 'Мероприятие: ';
+function joinEvent(event, discussed) {
+  event = event.trim().replace(/\s*\n\s*/g, ' ');
+  return event ? EV_PREFIX + event + '\n\n' + discussed : discussed;
+}
+function splitEvent(text) {
+  text = String(text ?? '');
+  if (!text.startsWith(EV_PREFIX)) return { event: '', discussed: text };
+  const nl = text.indexOf('\n');
+  return nl < 0
+    ? { event: text.slice(EV_PREFIX.length).trim(), discussed: '' }
+    : { event: text.slice(EV_PREFIX.length, nl).trim(), discussed: text.slice(nl).replace(/^\s+/, '') };
+}
+
 const draftKey = (id) => 'draft:' + id;
 function readDraft(id) { try { return JSON.parse(localStorage.getItem(draftKey(id)) || '{}'); } catch { return {}; } }
 function saveDraft() {
-  const o = { discussed: $('f1')?.value || '', result: $('f2')?.value || '', expectation: $('f3')?.value || '' };
+  const o = { event: $('f0')?.value || '', discussed: $('f1')?.value || '', result: $('f2')?.value || '', expectation: $('f3')?.value || '' };
   try { localStorage.setItem(draftKey(state.openId), JSON.stringify(o)); } catch {}
 }
 
@@ -452,6 +468,9 @@ function renderDialog() {
         body += `<button class="btn ghost" data-act="pick">Перенести встречу</button><div id="pk"></div>`;
         if (state.showResults) {
           body += `<div class="sec">Итоги встречи</div>
+            <div class="lbl" style="margin-top:12px">Название мероприятия</div>
+            <input id="f0" data-draft type="text" value="${esc(d.event || '')}" placeholder="Необязательно"
+              style="width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:12px;border-radius:12px;border:1px solid rgba(128,128,128,.3);background:var(--card);color:var(--text)">
             <div class="lbl" style="margin-top:12px">1. Что обсудили</div>
             <textarea id="f1" data-draft>${esc(d.discussed || '')}</textarea>
             <div class="lbl" style="margin-top:12px">2. Какой итог встречи</div>
@@ -467,9 +486,11 @@ function renderDialog() {
     }
 
   } else if (p.status === ST.DONE) {
+    const ev = splitEvent(p.discussed);
     body = `<div class="note">Выполнено · <b>${esc(p.owner)}</b>${p.date ? '<div style="color:var(--muted);font-size:14px;margin-top:2px">Встреча: ' + esc(fmtDate(p.date)) + '</div>' : ''}</div>
       <div class="grp">
-        <div class="r"><div class="lbl">1. Что обсудили</div><div class="pre">${esc(p.discussed) || '—'}</div></div>
+        ${ev.event ? `<div class="r"><div class="lbl">Название мероприятия</div><div class="pre">${esc(ev.event)}</div></div>` : ''}
+        <div class="r"><div class="lbl">1. Что обсудили</div><div class="pre">${esc(ev.discussed) || '—'}</div></div>
         <div class="r"><div class="lbl">2. Итог встречи</div><div class="pre">${esc(p.result) || '—'}</div></div>
         <div class="r"><div class="lbl">3. Ожидание для отдела продаж</div><div class="pre">${esc(p.expectation) || '—'}</div></div>
       </div>` + info;
@@ -621,6 +642,7 @@ $('dlgBody').addEventListener('click', async (e) => {
   else if (a === 'complete') {
     const body = { discussed: $('f1').value, result: $('f2').value, expectation: $('f3').value };
     if (!body.discussed.trim() || !body.result.trim() || !body.expectation.trim()) return toast('Заполните все три пункта');
+    body.discussed = joinEvent($('f0').value, body.discussed);
     const id = state.openId;
     closeDialog(); toast('Итоги сохранены');
     act('complete', body, id);                              // черновик удалится после подтверждения сервером
