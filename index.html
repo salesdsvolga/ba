@@ -215,7 +215,7 @@ function icsText(p) {
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Tochki//RU', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VEVENT',
     `UID:${p.id}-${f(s)}@tochki`, `DTSTAMP:${stamp}`, `DTSTART:${f(s)}`, `DTEND:${f(e)}`,
-    `SUMMARY:${t('Встреча: ' + p.name)}`, `LOCATION:${t(p.address)}`,
+    `SUMMARY:${t((p.event ? p.event + ' — ' : 'Встреча: ') + p.name)}`, `LOCATION:${t(p.address)}`,
     `DESCRIPTION:${t([p.contact, p.task].filter(Boolean).join('\n\n'))}`,
     'BEGIN:VALARM', 'TRIGGER:-PT60M', 'ACTION:DISPLAY', 'DESCRIPTION:Встреча через час', 'END:VALARM',
     'END:VEVENT', 'END:VCALENDAR'
@@ -265,8 +265,8 @@ function showBadge() {
 function applyLocal(p, action, x) {
   const q = { ...p };
   if (action === 'take') { q.status = ST.WORK; q.owner = state.user; }
-  else if (action === 'release') { q.status = ST.WAIT; q.owner = ''; q.date = ''; }
-  else if (action === 'schedule') { q.status = ST.SCHED; q.date = x.date; }
+  else if (action === 'release') { q.status = ST.WAIT; q.owner = ''; q.date = ''; q.event = ''; }
+  else if (action === 'schedule') { q.status = ST.SCHED; q.date = x.date; if (x.event !== undefined) q.event = x.event; }
   else if (action === 'complete') { q.status = ST.DONE; q.discussed = x.discussed; q.result = x.result; q.expectation = x.expectation; q.done = new Date().toISOString(); }
   return q;
 }
@@ -368,6 +368,7 @@ function render() {
         <div>
           <div class="t">${esc(p.name)}</div>
           <div class="a">${esc(p.address)}</div>
+          ${p.event ? `<div class="a">${esc(p.event)}</div>` : ''}
           ${(p.owner || (p.date && g.s === ST.SCHED)) ? `<div class="chips">
             ${p.owner ? `<span class="chip ${p.owner === state.user ? 'me' : ''}">${esc(p.owner)}</span>` : ''}
             ${p.date && g.s === ST.SCHED ? `<span class="chip">${esc(fmtDate(p.date))}</span>` : ''}
@@ -382,7 +383,7 @@ function render() {
 }
 
 /* ---------- шторка ---------- */
-const sigOf = (p) => p ? [p.status, p.owner, p.date].join('|') : '';
+const sigOf = (p) => p ? [p.status, p.owner, p.date, p.event].join('|') : '';
 
 function openDialog(id) {
   state.openId = id; state.justScheduled = null; state.showResults = false; state.pk = null;
@@ -421,6 +422,7 @@ function renderDialog() {
 
   const info = `
     <div class="grp">
+      ${p.event ? `<div class="r"><div class="lbl">Название мероприятия</div><div class="pre">${esc(p.event)}</div></div>` : ''}
       <div class="r"><div class="lbl">Адрес</div><a href="${mapUrl(p)}" target="_blank" rel="noopener">${esc(p.address) || '—'}</a></div>
       <div class="r"><div class="lbl">Контакт</div><div class="pre">${linkify(p.contact) || '—'}</div></div>
       <div class="r"><div class="lbl">Задача</div><div class="pre">${esc(p.task) || '—'}</div></div>
@@ -489,6 +491,9 @@ function mountPicker(p) {
   state.pk = { y: base.getFullYear(), m: base.getMonth(), d: base.getDate(), h: base.getHours(), mi: base.getMinutes(),
                vy: base.getFullYear(), vm: base.getMonth() };
   $('pk').innerHTML = `
+    <div class="lbl" style="margin-top:12px">Название мероприятия</div>
+    <input id="evName" type="text" maxlength="300" value="${esc(p.event || '')}" placeholder="Например: презентация новинки"
+      style="width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:12px;margin:6px 0 12px;border-radius:12px;border:1px solid rgba(128,128,128,.3);background:var(--card);color:var(--text)">
     <div class="pk">
       <div class="pk-sum" id="pkSum"></div>
       <div class="cal-h">
@@ -604,10 +609,12 @@ $('dlgBody').addEventListener('click', async (e) => {
   else if (a === 'schedule') {
     const k = state.pk; if (!k) return;
     const when = new Date(k.y, k.m, k.d, k.h, k.mi);
+    const event = ($('evName')?.value || '').trim().replace(/\s+/g, ' ');
+    if (!event) { $('evName')?.focus(); return toast('Укажите название мероприятия'); }
     if (when.getTime() < Date.now() - 60000) return toast('Это время уже прошло');
     const iso = `${k.y}-${pad(k.m + 1)}-${pad(k.d)}T${pad(k.h)}:${pad(k.mi)}`;
     state.justScheduled = state.openId;
-    act('schedule', { date: iso });                          // экран подтверждения появляется сразу
+    act('schedule', { date: iso, event });                        // экран подтверждения появляется сразу
   }
   else if (a === 'ics') { if (p && p.date) addToCalendar(p); }
   else if (a === 'results') { state.showResults = true; renderDialog(); }
