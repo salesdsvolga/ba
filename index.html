@@ -406,9 +406,9 @@ function render() {
 }
 
 /* ---------- шторка ---------- */
-// встреча по времени закончилась, а итоги не внесены
+// встреча по времени закончилась, а итоги не внесены — показываем только самому исполнителю
 function needsResults(p) {
-  if (p.status !== ST.SCHED || !p.date) return false;
+  if (p.status !== ST.SCHED || !p.date || p.owner !== state.user) return false;
   const t = new Date(p.date).getTime();
   return !isNaN(t) && Date.now() >= t + CONFIG.MEETING_HOURS * 3600e3;
 }
@@ -478,7 +478,7 @@ function renderDialog() {
         <button class="btn plain" data-act="close">Готово</button>`;
     } else {
       const d = readDraft(p.id);
-      body = (needsResults(p) ? `<div class="note warn">⚠️ Встреча закончилась — ${mine ? 'внесите итоги' : 'итоги ещё не внесены'}</div>` : '') +
+      body = (needsResults(p) ? `<div class="note warn">⚠️ Встреча закончилась — внесите итоги</div>` : '') +
         `<div class="note">Встреча<div class="big">${esc(fmtDate(p.date))}</div>
           <div style="color:var(--muted);font-size:14px;margin-top:2px">Исполнитель: ${esc(p.owner)}</div></div>
         <button class="btn ghost" data-act="ics" ${state.pending ? 'disabled' : ''}>${state.pending ? 'Сохраняю…' : 'Добавить в календарь iPhone'}</button>` + info;
