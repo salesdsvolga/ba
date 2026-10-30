@@ -56,6 +56,8 @@
   .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:9px; }
   .chip { font-size:12px; font-weight:600; padding:3px 10px; border-radius:20px; background:var(--soft); color:var(--text); }
   .chip.me { background:var(--ink); color:var(--ink-t); }
+  .chip.warn { background:#ff7a1a; color:#fff; }
+  .note.warn { background:rgba(255,122,26,.14); color:var(--text); }
 
   .st { flex:0 0 auto; width:24px; height:24px; border-radius:50%; border:2px solid var(--muted); position:relative; }
   .st.work { border-color:var(--ink); background:conic-gradient(var(--ink) 0 50%, transparent 0 100%); }
@@ -153,6 +155,7 @@
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbya4k0DQmu5HXcXJMoFq_vqcx2gmw0ajSIqf6cf-WGBKE01D2aDbHZ4hfUuLEx4RCqKqw/exec',
   POLL_MS: 10000,   // как часто обновлять (мс)
+  MEETING_HOURS: 2.5, // через сколько часов после начала встреча считается законченной (как в боте)
   CITY: ''          // например 'Самара' — уточняет ссылку на карту
 };
 /* ==================== */
@@ -388,6 +391,7 @@ function render() {
           <div class="a">${esc(p.address)}</div>
           ${p.event ? `<div class="a">${esc(p.event)}</div>` : ''}
           ${(p.owner || (p.date && g.s === ST.SCHED)) ? `<div class="chips">
+            ${needsResults(p) ? `<span class="chip warn">⚠️ Внесите итоги</span>` : ''}
             ${p.owner ? `<span class="chip ${p.owner === state.user ? 'me' : ''}">${esc(p.owner)}</span>` : ''}
             ${p.date && g.s === ST.SCHED ? `<span class="chip">${esc(fmtDate(p.date))}</span>` : ''}
           </div>` : ''}
@@ -398,9 +402,18 @@ function render() {
   }).join('');
   const done = state.points.filter(p => p.status === ST.DONE).length;
   $('stats').textContent = `${done} из ${state.points.length} выполнено`;
+  state.warn = warnSig();
 }
 
 /* ---------- шторка ---------- */
+// встреча по времени закончилась, а итоги не внесены
+function needsResults(p) {
+  if (p.status !== ST.SCHED || !p.date) return false;
+  const t = new Date(p.date).getTime();
+  return !isNaN(t) && Date.now() >= t + CONFIG.MEETING_HOURS * 3600e3;
+}
+const warnSig = () => state.points.filter(needsResults).map(p => p.id).join(',');
+
 const sigOf = (p) => p ? [p.status, p.owner, p.date, p.event].join('|') : '';
 
 function openDialog(id) {
@@ -465,7 +478,8 @@ function renderDialog() {
         <button class="btn plain" data-act="close">Готово</button>`;
     } else {
       const d = readDraft(p.id);
-      body = `<div class="note">Встреча<div class="big">${esc(fmtDate(p.date))}</div>
+      body = (needsResults(p) ? `<div class="note warn">⚠️ Встреча закончилась — ${mine ? 'внесите итоги' : 'итоги ещё не внесены'}</div>` : '') +
+        `<div class="note">Встреча<div class="big">${esc(fmtDate(p.date))}</div>
           <div style="color:var(--muted);font-size:14px;margin-top:2px">Исполнитель: ${esc(p.owner)}</div></div>
         <button class="btn ghost" data-act="ics" ${state.pending ? 'disabled' : ''}>${state.pending ? 'Сохраняю…' : 'Добавить в календарь iPhone'}</button>` + info;
       if (mine) {
@@ -671,7 +685,12 @@ else {
   showBadge();
   flush();
   load();
-  state.timer = setInterval(() => { if (!document.hidden) { flush(); load(); } }, CONFIG.POLL_MS);
+  state.timer = setInterval(() => {
+    if (document.hidden) return;
+    flush(); load();
+    const w = warnSig();                       // тег «Внесите итоги» появляется по времени, без новых данных
+    if (w !== state.warn) { state.warn = w; render(); refreshDialog(true); }
+  }, CONFIG.POLL_MS);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { state.loading = false; flush(); load(); } });
   window.addEventListener('online', () => { flush(); load(); });
 }
