@@ -106,14 +106,19 @@
   .done-row .main { flex:1 1 auto; display:flex; flex-direction:column; gap:3px; min-width:0; }
 
   /* ---------- шторка ---------- */
-  dialog { border:0; padding:0; margin:auto 0 0; width:100%; max-width:100%; max-height:94dvh; background:var(--sheet); color:var(--text);
+  /* шторка прибита к низу экрана явно: в Safari стандартное центрирование <dialog> даёт зазоры сверху и снизу */
+  dialog { position:fixed; inset:auto 0 0 0; margin:0; border:0; padding:0; width:100%; max-width:100%; height:auto;
+    max-height:calc(100dvh - 40px - env(safe-area-inset-top)); background:var(--sheet); color:var(--text);
     border-radius:26px 26px 0 0; overflow:hidden; }
-  @media (min-width:700px) { dialog { margin:auto; width:560px; border-radius:26px; max-height:90vh; } }
+  dialog:not([open]) { display:none; }
+  dialog[open] { display:flex; flex-direction:column; }
+  @media (min-width:700px) { dialog { inset:0; margin:auto; width:560px; height:fit-content; max-height:90vh; border-radius:26px; } }
   dialog[open] { animation:up .28s cubic-bezier(.2,.8,.2,1); }
   dialog::backdrop { background:rgba(0,0,0,.4); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
   @keyframes up { from { transform:translateY(40px); opacity:0; } to { transform:none; opacity:1; } }
-  .grab { width:40px; height:5px; border-radius:3px; background:var(--line2); margin:10px auto 0; }
-  .db { padding:12px 20px calc(28px + env(safe-area-inset-bottom)); overflow-y:auto; max-height:calc(94dvh - 20px);
+  #dlgBody { display:flex; flex-direction:column; min-height:0; flex:1 1 auto; }
+  .grab { flex:0 0 auto; width:40px; height:5px; border-radius:3px; background:var(--line2); margin:10px auto 0; }
+  .db { padding:12px 20px calc(28px + env(safe-area-inset-bottom)); overflow-y:auto; flex:1 1 auto; min-height:0;
     -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; gap:20px; }
   .db > *, #pk > * { flex-shrink:0; }
   .dh { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
@@ -738,11 +743,6 @@ function renderDialog() {
 
 /* ---------- назначение встречи: название + барабан ---------- */
 const ROW = 44, DAYS_AHEAD = 60;
-function eventSuggestions(cur) {
-  const cnt = {};
-  state.points.forEach(p => { const e = String(p.event || '').trim(); if (e) cnt[e] = (cnt[e] || 0) + 1; });
-  return Object.keys(cnt).filter(e => e !== cur).sort((a, b) => cnt[b] - cnt[a]).slice(0, 4);
-}
 function mountPicker(p) {
   const today = day0(new Date());
   const days = Array.from({ length: DAYS_AHEAD }, (_, i) => { const d = new Date(today); d.setDate(today.getDate() + i); return d; });
@@ -750,11 +750,9 @@ function mountPicker(p) {
   if (!base || base < Date.now()) { base = new Date(today); base.setDate(today.getDate() + 1); base.setHours(12, 0, 0, 0); }
   const di = Math.max(0, Math.min(DAYS_AHEAD - 1, dayDiff(base)));
   state.pk = { days, d: di, h: base.getHours(), mi: Math.min(11, Math.round(base.getMinutes() / 5)) };
-  const sugg = eventSuggestions(p.event);
   $('pk').innerHTML = `
     <div class="field" style="margin-bottom:20px"><label for="evName">Название мероприятия</label>
       <input id="evName" type="text" maxlength="300" value="${esc(p.event || '')}" placeholder="Например: презентация новинки">
-      ${sugg.length ? `<div class="chips">${sugg.map(s => `<button type="button" data-ev="${esc(s)}">${esc(s)}</button>`).join('')}</div>` : ''}
     </div>
     <div class="field" style="margin-bottom:12px"><span class="lab">Дата и время</span>
       <div class="wheels"><div class="band"></div>
@@ -830,9 +828,6 @@ $('dlg').addEventListener('close', () => { state.openId = null; state.sig = ''; 
 $('dlgBody').addEventListener('input', (e) => { if (e.target.matches('[data-draft]')) saveDraft(); });
 
 $('dlgBody').addEventListener('click', async (e) => {
-  const ev = e.target.closest('[data-ev]');
-  if (ev) { $('evName').value = ev.dataset.ev; return; }
-
   const btn = e.target.closest('[data-act]'); if (!btn) return;
   const a = btn.dataset.act;
   const p = state.points.find(x => x.id === state.openId);
