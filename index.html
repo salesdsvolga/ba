@@ -460,6 +460,8 @@ function openDeepLink() {
     setTimeout(() => $('f1')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250);
   }
   else if (p.status === ST.DONE) toast('Итоги по этой встрече уже внесены');
+  else if (p.status === ST.SCHED && mateOf(p) && !isMine(p)) toast('Напарник на эту встречу уже найден');
+  else if (p.status !== ST.SCHED && !isMine(p)) toast('Эта встреча уже неактуальна');
 }
 
 /* ---------- иконки ---------- */
